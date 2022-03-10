@@ -1,0 +1,7 @@
+herbarium_routing.csv_export_form:
+  path: '/herbarium/export'
+  defaults:
+    _form: '\Drupal\herbarium_export\Form\HerbariumExportForm'
+    _title: 'HerbariumExportForm'
+  requirements:
+    _access: 'TRUE'

@@ -1,0 +1,5 @@
+ead.admin_settings:
+  title: 'Harvest CatalogNo and Filename'
+  parent: system.admin_config_content
+  description: 'To import EADs from zipped file.'
+  route_name: herbarium_routing.csv_export_form
