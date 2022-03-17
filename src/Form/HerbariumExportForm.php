@@ -92,7 +92,7 @@ class HerbariumExportForm extends FormBase {
    */
   protected function build_csv() {
     $filename = 'herbarium_export.csv';
-    $content_type = 'islandora_object';
+    $content_type = 'darwin_core_herbarium';
     $headers = ['catalognumber', 'originalurl', 'url', 'thumbnail'];
     $full_file = "public://export/{$filename}";
     $dest_dir = 'public://export/';
