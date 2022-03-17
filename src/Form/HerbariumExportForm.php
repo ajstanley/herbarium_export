@@ -92,38 +92,63 @@ class HerbariumExportForm extends FormBase {
    */
   protected function build_csv() {
     $filename = 'herbarium_export.csv';
-    $content_type = 'darwin_core_herbarium';
-    $headers = ['Catalog Number', 'File URL'];
+    $content_type = 'islandora_object';
+    $headers = ['catalognumber', 'originalurl', 'url', 'thumbnail'];
     $full_file = "public://export/{$filename}";
     $dest_dir = 'public://export/';
 
     if (!$this->fileSystem->prepareDirectory($dest_dir, FileSystemInterface::CREATE_DIRECTORY | FileSystemInterface::MODIFY_PERMISSIONS)) {
       throw new HttpException(500, "The destination directory does not exist, could not be created, or is not writable");
     }
-    $fp = fopen($full_file, 'w');
-    fputcsv($fp, $headers);
+
+    // Get tids for media use.
+    $original = array_key_first($this->entityTypeManager->getStorage('taxonomy_term')
+      ->loadByProperties([
+        'name' => 'Original File',
+        'vid' => 'islandora_media_use',
+      ]));
     $service = array_key_first($this->entityTypeManager->getStorage('taxonomy_term')
       ->loadByProperties([
         'name' => 'Service File',
         'vid' => 'islandora_media_use',
       ]));
+    $thumbnail = array_key_first($this->entityTypeManager->getStorage('taxonomy_term')
+      ->loadByProperties([
+        'name' => 'Thumbnail Image',
+        'vid' => 'islandora_media_use',
+      ]));
+
+    // Open file
+    $fp = fopen($full_file, 'w');
+    fputcsv($fp, $headers);
 
     $nids = \Drupal::entityQuery('node')
       ->condition('type', $content_type)
       ->execute();
     $nodes = Node::loadMultiple($nids);
     foreach ($nodes as $node) {
+      $catalog_number = $node->get('field_catalognumber')->value;
       $media = $this->utils->getMedia($node);
       foreach ($media as $medium) {
         $type = $medium->get('field_media_use')->getValue();
+        if ($type[0]['target_id'] == $original) {
+          $fid = $medium->getSource()->getSourceFieldValue($medium);
+          $file = File::load($fid);
+          $original_uri = $file->createFileUrl(FALSE);
+        }
         if ($type[0]['target_id'] == $service) {
           $fid = $medium->getSource()->getSourceFieldValue($medium);
           $file = File::load($fid);
-          $uri = $file->createFileUrl(FALSE);
-          $catalog_number = $node->get('field_catalognumber')->value;
-          fputcsv($fp, [$catalog_number, $uri]);
-
+          $service_uri = $file->createFileUrl(FALSE);
         }
+        if ($type[0]['target_id'] == $thumbnail) {
+          $fid = $medium->getSource()->getSourceFieldValue($medium);
+          $file = File::load($fid);
+          $thumbnail_uri = $file->createFileUrl(FALSE);
+        }
+      }
+      if ($original_uri || $service_uri || $thumbnail_uri) {
+        fputcsv($fp, [$catalog_number, $original_uri, $service_uri, $thumbnail_uri]);
       }
     }
     fclose($fp);

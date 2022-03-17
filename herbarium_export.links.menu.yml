@@ -1,5 +1,5 @@
 ead.admin_settings:
-  title: 'Harvest CatalogNo and Filename'
+  title: 'Export Catalog number to image mappings'
   parent: system.admin_config_content
-  description: 'To import EADs from zipped file.'
+  description: 'Export CSV mapping Catalog numbers to Image URLs.'
   route_name: herbarium_routing.csv_export_form
