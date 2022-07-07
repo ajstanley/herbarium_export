@@ -56,8 +56,27 @@ class HerbariumExportForm extends FormBase {
    * {@inheritdoc}
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
+    $options = [];
+    $vid = 'institutional_collections';
+    $terms =\Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree($vid);
+    foreach ($terms as $term) {
+      $options[$term->tid] =  $term->name;
+      $term_data[] = array(
+        'id' => $term->tid,
+        'name' => $term->name
+      );
+    }
+
 
     $form_state->setStorage(['built' => TRUE]);
+    $form_state->setStorage(['options' => $options]);
+    $form['collection'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Collection'),
+      '#description' => $this->t('Enter collection'),
+      '#options' => $options,
+      '#weight' => '0',
+    ];
 
     $form['submit'] = [
       '#type' => 'submit',
@@ -72,8 +91,11 @@ class HerbariumExportForm extends FormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $this->build_csv();
-    $filename = 'herbarium_export.csv';
+    $collection = $form_state->getValue('collection');
+    $options = $form_state->getStorage('options');
+    $name = $options['options'][$collection];
+    $filename = "{$name}_herbarium_export.csv";
+    $this->build_csv($collection, $filename);
     $path = "public://export/{$filename}";
     $headers = [
       'Content-Type' => 'text/csv',
@@ -87,11 +109,11 @@ class HerbariumExportForm extends FormBase {
 
   /**
    * Builds and saves csv
+   *
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  protected function build_csv() {
-    $filename = 'herbarium_export.csv';
+  protected function build_csv($collection, $filename) {
     $content_type = 'darwin_core_herbarium';
     $headers = ['catalognumber', 'originalurl', 'url', 'thumbnail'];
     $full_file = "public://export/{$filename}";
@@ -124,6 +146,7 @@ class HerbariumExportForm extends FormBase {
 
     $nids = \Drupal::entityQuery('node')
       ->condition('type', $content_type)
+      ->condition('field_institutional_collection', $collection)
       ->execute();
     $nodes = Node::loadMultiple($nids);
     foreach ($nodes as $node) {
@@ -148,7 +171,12 @@ class HerbariumExportForm extends FormBase {
         }
       }
       if ($original_uri || $service_uri || $thumbnail_uri) {
-        fputcsv($fp, [$catalog_number, $original_uri, $service_uri, $thumbnail_uri]);
+        fputcsv($fp, [
+          $catalog_number,
+          $original_uri,
+          $service_uri,
+          $thumbnail_uri,
+        ]);
       }
     }
     fclose($fp);
