@@ -58,13 +58,15 @@ class HerbariumExportForm extends FormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $options = [];
     $vid = 'institutional_collections';
-    $terms =\Drupal::entityTypeManager()->getStorage('taxonomy_term')->loadTree($vid);
+    $terms = \Drupal::entityTypeManager()
+      ->getStorage('taxonomy_term')
+      ->loadTree($vid);
     foreach ($terms as $term) {
-      $options[$term->tid] =  $term->name;
-      $term_data[] = array(
+      $options[$term->tid] = $term->name;
+      $term_data[] = [
         'id' => $term->tid,
-        'name' => $term->name
-      );
+        'name' => $term->name,
+      ];
     }
 
 
@@ -74,6 +76,13 @@ class HerbariumExportForm extends FormBase {
       '#type' => 'select',
       '#title' => $this->t('Collection'),
       '#description' => $this->t('Enter collection'),
+      '#options' => $options,
+      '#weight' => '0',
+    ];
+    $form['range'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Range'),
+      '#description' => $this->t('Limit Range of returned objects.  More than a thousand is likely to result in failure'),
       '#options' => $options,
       '#weight' => '0',
     ];
@@ -147,39 +156,44 @@ class HerbariumExportForm extends FormBase {
     $nids = \Drupal::entityQuery('node')
       ->condition('type', $content_type)
       ->condition('field_institutional_collection', $collection)
+      ->range(0, 1000)
       ->execute();
-    $nodes = Node::loadMultiple($nids);
-    foreach ($nodes as $node) {
-      $catalog_number = $node->get('field_catalognumber')->value;
-      $media = $this->utils->getMedia($node);
-      foreach ($media as $medium) {
-        $type = $medium->get('field_media_use')->getValue();
-        if ($type[0]['target_id'] == $original) {
-          $fid = $medium->getSource()->getSourceFieldValue($medium);
-          $file = File::load($fid);
-          $original_uri = $file->createFileUrl(FALSE);
+    $chunked_nodes = \array_chunk($nids);
+    foreach ($chunked_nodes as $nids) {
+      $nodes = Node::loadMultiple($nids);
+      foreach ($nodes as $node) {
+        $catalog_number = $node->get('field_catalognumber')->value;
+        $media = $this->utils->getMedia($node);
+        foreach ($media as $medium) {
+          $type = $medium->get('field_media_use')->getValue();
+          if ($type[0]['target_id'] == $original) {
+            $fid = $medium->getSource()->getSourceFieldValue($medium);
+            $file = File::load($fid);
+            $original_uri = $file->createFileUrl(FALSE);
+          }
+          if ($type[0]['target_id'] == $service) {
+            $fid = $medium->getSource()->getSourceFieldValue($medium);
+            $file = File::load($fid);
+            $service_uri = $file->createFileUrl(FALSE);
+          }
+          if ($type[0]['target_id'] == $thumbnail) {
+            $fid = $medium->getSource()->getSourceFieldValue($medium);
+            $file = File::load($fid);
+            $thumbnail_uri = $file->createFileUrl(FALSE);
+          }
         }
-        if ($type[0]['target_id'] == $service) {
-          $fid = $medium->getSource()->getSourceFieldValue($medium);
-          $file = File::load($fid);
-          $service_uri = $file->createFileUrl(FALSE);
+        if ($original_uri || $service_uri || $thumbnail_uri) {
+          fputcsv($fp, [
+            $catalog_number,
+            $original_uri,
+            $service_uri,
+            $thumbnail_uri,
+          ]);
         }
-        if ($type[0]['target_id'] == $thumbnail) {
-          $fid = $medium->getSource()->getSourceFieldValue($medium);
-          $file = File::load($fid);
-          $thumbnail_uri = $file->createFileUrl(FALSE);
-        }
-      }
-      if ($original_uri || $service_uri || $thumbnail_uri) {
-        fputcsv($fp, [
-          $catalog_number,
-          $original_uri,
-          $service_uri,
-          $thumbnail_uri,
-        ]);
       }
     }
     fclose($fp);
   }
+
 
 }
