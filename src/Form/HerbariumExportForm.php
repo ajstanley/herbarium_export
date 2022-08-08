@@ -57,7 +57,7 @@ class HerbariumExportForm extends FormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state) {
     $options = [];
-    $vid = 'institutional_collections';
+    $vid = 'institutional_collection';
     $terms = \Drupal::entityTypeManager()
       ->getStorage('taxonomy_term')
       ->loadTree($vid);
@@ -79,13 +79,7 @@ class HerbariumExportForm extends FormBase {
       '#options' => $options,
       '#weight' => '0',
     ];
-    $form['range'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Range'),
-      '#description' => $this->t('Limit Range of returned objects.  More than a thousand is likely to result in failure'),
-      '#options' => $options,
-      '#weight' => '0',
-    ];
+
 
     $form['submit'] = [
       '#type' => 'submit',
