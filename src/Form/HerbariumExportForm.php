@@ -79,8 +79,12 @@ class HerbariumExportForm extends FormBase {
       '#options' => $options,
       '#weight' => '0',
     ];
-
-
+    $form['range'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Range'),
+      '#description' => $this->t('Results are returned 1000 at a time.  Set lower limit here'),
+      '#weight' => '0',
+    ];
     $form['submit'] = [
       '#type' => 'submit',
       '#value' => 'Download CSV',
@@ -95,10 +99,12 @@ class HerbariumExportForm extends FormBase {
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $collection = $form_state->getValue('collection');
+    $range = $form_state->getValue('range');
+    $upper_limit = (int)$range + 1000;
     $options = $form_state->getStorage('options');
     $name = $options['options'][$collection];
-    $filename = "{$name}_herbarium_export.csv";
-    $this->build_csv($collection, $filename);
+    $filename = "{$name}_herbarium_export_{$range}-{$upper_limit}.csv";
+    $this->build_csv($collection, $filename, $range);
     $path = "public://export/{$filename}";
     $headers = [
       'Content-Type' => 'text/csv',
@@ -116,7 +122,7 @@ class HerbariumExportForm extends FormBase {
    * @throws \Drupal\Component\Plugin\Exception\InvalidPluginDefinitionException
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    */
-  protected function build_csv($collection, $filename) {
+  protected function build_csv($collection, $filename, $range) {
     $content_type = 'darwin_core_herbarium';
     $headers = ['catalognumber', 'originalurl', 'url', 'thumbnail'];
     $full_file = "public://export/{$filename}";
@@ -150,10 +156,8 @@ class HerbariumExportForm extends FormBase {
     $nids = \Drupal::entityQuery('node')
       ->condition('type', $content_type)
       ->condition('field_institutional_collection', $collection)
-      ->range(0, 1000)
+      ->range ($range, $range + 1000)
       ->execute();
-    $chunked_nodes = \array_chunk($nids);
-    foreach ($chunked_nodes as $nids) {
       $nodes = Node::loadMultiple($nids);
       foreach ($nodes as $node) {
         $catalog_number = $node->get('field_catalognumber')->value;
@@ -184,7 +188,6 @@ class HerbariumExportForm extends FormBase {
             $thumbnail_uri,
           ]);
         }
-      }
     }
     fclose($fp);
   }
