@@ -156,7 +156,7 @@ class HerbariumExportForm extends FormBase {
     $nids = \Drupal::entityQuery('node')
       ->condition('type', $content_type)
       ->condition('field_institutional_collection', $collection)
-      ->range ($range, $range + 1000)
+      ->range ($range, 1000)
       ->execute();
       $nodes = Node::loadMultiple($nids);
       foreach ($nodes as $node) {
